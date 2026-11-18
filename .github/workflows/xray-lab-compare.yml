@@ -1,0 +1,41 @@
+name: xray-lab-compare
+
+# Only for the fork: the Xray tunnel lab on Ubuntu 24.04 and 26.04, three
+# times each, to see whether "reality-reverse: 16 parallel connections"
+# fails because of the new runner image. Not meant for upstream.
+on:
+  push:
+    branches: [lab/ubuntu-compare]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  xray-lab:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, ubuntu-26.04]
+        run: [1, 2, 3]
+    name: ${{ matrix.os }} run ${{ matrix.run }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: panel/go.mod
+          cache-dependency-path: panel/go.sum
+      - name: runner
+        run: |
+          uname -r; . /etc/os-release; echo "$PRETTY_NAME"
+          python3 --version; ip -V; iptables -V; tc -V 2>/dev/null || true
+      - name: Xray tunnel lab (Xray-core v26.3.27)
+        run: |
+          mkdir -p /tmp/xray-dl && cd /tmp/xray-dl
+          curl -fsSL -o xray.zip https://github.com/XTLS/Xray-core/releases/download/v26.3.27/Xray-linux-64.zip
+          echo "23cd9af937744d97776ee35ecad4972cf4b2109d1e0fe6be9930467608f7c8ae  xray.zip" | sha256sum -c -
+          unzip -oq xray.zip xray
+          cd "$GITHUB_WORKSPACE" && (cd panel && go test -c -o /tmp/xraylab.test .)
+          sudo env "PATH=$PATH" GITHUB_ACTIONS="$GITHUB_ACTIONS" XRAY_BIN=/tmp/xray-dl/xray XRAY_LAB_TEST_BIN=/tmp/xraylab.test bash tests/test_xray_lab.sh
