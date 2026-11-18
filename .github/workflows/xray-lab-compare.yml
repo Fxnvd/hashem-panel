@@ -1,8 +1,9 @@
 name: xray-lab-compare
 
-# Only for the fork: the Xray tunnel lab on Ubuntu 24.04 and 26.04, three
-# times each, to see whether "reality-reverse: 16 parallel connections"
-# fails because of the new runner image. Not meant for upstream.
+# Only for the fork: the Xray tunnel lab on Ubuntu 26.04 with Xray-core
+# v26.3.27 and v26.10.21, three times each, to see whether "reality-reverse: 16 parallel connections"
+# (a broken mux stream on the foreign end) is fixed in the newer Xray.
+# Not meant for upstream.
 on:
   push:
     branches: [lab/ubuntu-compare]
@@ -16,10 +17,12 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-24.04, ubuntu-26.04]
+        xray:
+          - {v: v26.3.27, sha: 23cd9af937744d97776ee35ecad4972cf4b2109d1e0fe6be9930467608f7c8ae}
+          - {v: v26.10.21, sha: 0eec3ed4163c273d8c8bf821f7d219e257921cf584aa3fb970715e458e631978}
         run: [1, 2, 3]
-    name: ${{ matrix.os }} run ${{ matrix.run }}
-    runs-on: ${{ matrix.os }}
+    name: xray ${{ matrix.xray.v }} run ${{ matrix.run }}
+    runs-on: ubuntu-26.04
     timeout-minutes: 40
     steps:
       - uses: actions/checkout@v5
@@ -31,11 +34,11 @@ jobs:
         run: |
           uname -r; . /etc/os-release; echo "$PRETTY_NAME"
           python3 --version; ip -V; iptables -V; tc -V 2>/dev/null || true
-      - name: Xray tunnel lab (Xray-core v26.3.27)
+      - name: Xray tunnel lab (Xray-core ${{ matrix.xray.v }})
         run: |
           mkdir -p /tmp/xray-dl && cd /tmp/xray-dl
-          curl -fsSL -o xray.zip https://github.com/XTLS/Xray-core/releases/download/v26.3.27/Xray-linux-64.zip
-          echo "23cd9af937744d97776ee35ecad4972cf4b2109d1e0fe6be9930467608f7c8ae  xray.zip" | sha256sum -c -
+          curl -fsSL -o xray.zip https://github.com/XTLS/Xray-core/releases/download/${{ matrix.xray.v }}/Xray-linux-64.zip
+          echo "${{ matrix.xray.sha }}  xray.zip" | sha256sum -c -
           unzip -oq xray.zip xray
           cd "$GITHUB_WORKSPACE" && (cd panel && go test -c -o /tmp/xraylab.test .)
           sudo env "PATH=$PATH" GITHUB_ACTIONS="$GITHUB_ACTIONS" XRAY_BIN=/tmp/xray-dl/xray XRAY_LAB_TEST_BIN=/tmp/xraylab.test bash tests/test_xray_lab.sh
