@@ -3,6 +3,11 @@
 Format: newest first. Versions are git tags; every tag has a GitHub release with `checksums.txt`.
 Builds before `v0.1.0` were numbered `panel-rN` (see the releases page).
 
+## Unreleased
+
+- **Dashboard: the first tunnel's speed keeps up with Live traffic.** It was worked out from /api/status, polled every 15 s, while Live traffic and the other tunnels' speeds come from the dashboard every 5 s. So it trailed them, repeated the same number for two refreshes, and averaged over 15 s it could read far off Live traffic. /api/dashboard now sends the first tunnel's counters (`main_rx`, `main_tx`) read with the others, and the Dashboard uses them.
+- **Dashboard: Bagher links show their speed.** They showed none; /api/dashboard now sends each Bagher link's counters (`bagher_counters`).
+
 ## v3.2.3 — 2026-11-21
 
 **Sentinel 1.4.0 (TUIC, Hysteria, AnyTLS, NaiveProxy, SSH and ShadowTLS through sing-box, the likely cause of every outage, a dashboard that says what needs a look, alerts through Bale or a webhook, a Slow state, a feed per customer, a weekly report and the whole panel in the Telegram bot), times shown in Tehran's zone, and which address each tunnel uses.** Run `hashem update`; an installed Sentinel upgrades itself about two minutes after the panel starts.
